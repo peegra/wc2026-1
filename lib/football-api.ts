@@ -252,8 +252,11 @@ async function fetchAdvancedTeams(sharedBrowser?: any): Promise<ActualResults['a
     const advancedTeams = await page.evaluate(() => {
       const r32 = new Set<string>()
       const r16 = new Set<string>()
+      const r16Finished = new Set<string>()
       const r8 = new Set<string>()
+      const r8Finished = new Set<string>()
       const r4plus = new Set<string>()
+      const r4plusFinished = new Set<string>()
 
       const rows = document.querySelectorAll('.sc-tableGame tbody tr')
       rows.forEach((row) => {
@@ -262,17 +265,21 @@ async function fetchAdvancedTeams(sharedBrowser?: any): Promise<ActualResults['a
 
         const category = cells[1]?.textContent?.trim() || ''
         const home = cells[2]?.textContent?.trim() || ''
+        const score = cells[3]?.textContent?.trim() || ''
         const away = cells[4]?.textContent?.trim() || ''
         const teams = [home, away].filter(Boolean)
+        const isFinished = /\d+\s*[-–]\s*\d+/.test(score)
 
         if (category.includes('ラウンド32') || category.includes('ベスト32')) {
           teams.forEach((t) => r32.add(t))
         }
         if (category.includes('ラウンド16') || category.includes('ベスト16')) {
           teams.forEach((t) => r16.add(t))
+          if (isFinished) teams.forEach((t) => r16Finished.add(t))
         }
         if (category.includes('準々決勝') || category.includes('ベスト8')) {
           teams.forEach((t) => r8.add(t))
+          if (isFinished) teams.forEach((t) => r8Finished.add(t))
         }
         if (
           category.includes('準決勝') ||
@@ -281,14 +288,18 @@ async function fetchAdvancedTeams(sharedBrowser?: any): Promise<ActualResults['a
           category.includes('ベスト4')
         ) {
           teams.forEach((t) => r4plus.add(t))
+          if (isFinished) teams.forEach((t) => r4plusFinished.add(t))
         }
       })
 
       return {
         r32: [...r32],
         r16: [...r16],
+        r16Finished: [...r16Finished],
         r8: [...r8],
+        r8Finished: [...r8Finished],
         r4plus: [...r4plus],
+        r4plusFinished: [...r4plusFinished],
       }
     })
 
@@ -298,12 +309,15 @@ async function fetchAdvancedTeams(sharedBrowser?: any): Promise<ActualResults['a
     return {
       r32: sanitize(advancedTeams.r32),
       r16: sanitize(advancedTeams.r16),
+      r16Finished: sanitize(advancedTeams.r16Finished || []),
       r8: sanitize(advancedTeams.r8),
+      r8Finished: sanitize(advancedTeams.r8Finished || []),
       r4plus: sanitize(advancedTeams.r4plus),
+      r4plusFinished: sanitize(advancedTeams.r4plusFinished || []),
     }
   } catch (err) {
     console.error('[puppeteer] fetchAdvancedTeams error:', err)
-    return { r32: [], r16: [], r8: [], r4plus: [] }
+    return { r32: [], r16: [], r16Finished: [], r8: [], r8Finished: [], r4plus: [], r4plusFinished: [] }
   } finally {
     if (ownsBrowser && browser) await browser.close()
   }

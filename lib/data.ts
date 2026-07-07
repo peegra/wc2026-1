@@ -179,8 +179,11 @@ export interface ActualResults {
   advancedTeams: {
     r32: string[]
     r16: string[]
+    r16Finished?: string[]
     r8: string[]
+    r8Finished?: string[]
     r4plus: string[]
+    r4plusFinished?: string[]
   }
   scorer?: { name: string; goals: number }
   scorers?: Array<{ name: string; goals: number }>
@@ -238,18 +241,32 @@ export function calcPoints(pred: Prediction, results: ActualResults | null): Poi
     const actual = results.rankings[key]
     if (!predicted) return
     const { r32 = [], r16 = [], r8 = [], r4plus = [] } = results.advancedTeams
+    const actualTop4 = new Set([results.rankings.r1, results.rankings.r2, results.rankings.r3, results.rankings.r4].filter((v): v is string => Boolean(v)))
 
     let pts = 0
-    // 到達ボーナス（新ルール）
-    // ベスト8以上: +5 / ベスト16: +3 / ベスト32: +1
-    // 旧データ互換のため r4plus はベスト8以上として扱う
-    if (r8.includes(predicted) || r4plus.includes(predicted)) pts += 5
-    else if (r16.includes(predicted)) pts += 3
-    else if (r32.includes(predicted)) pts += 1
+    // 順位点
+    // 1位: 30 / 2位: 20 / 3位: 15 / 4位: 10
+    // 1位・2位は、実際の順位より下がっても到達ボーナスとして扱う
+    if (key === 'r1') {
+      if (predicted === actual) pts = rankMap.r1
+      else if (predicted === results.rankings.r2) pts = rankMap.r2
+      else if (actualTop4.has(predicted) || r4plus.includes(predicted)) pts = rankMap.r4
+    } else if (key === 'r2') {
+      if (predicted === results.rankings.r1 || predicted === results.rankings.r2) pts = rankMap.r2
+      else if (actualTop4.has(predicted) || r4plus.includes(predicted)) pts = rankMap.r4
+    } else if (key === 'r3') {
+      if (predicted === actual) pts = rankMap.r3
+      else if (actualTop4.has(predicted) || r4plus.includes(predicted)) pts = rankMap.r4
+    } else if (key === 'r4') {
+      if (predicted === actual) pts = rankMap.r4
+      else if (actualTop4.has(predicted) || r4plus.includes(predicted)) pts = rankMap.r4
+    }
 
-    // 順位一致ポイントは到達ボーナスに加算
-    if (predicted === actual) {
-      pts += rankMap[key]
+    // 到達ボーナス
+    if (!pts) {
+      if (r8.includes(predicted) || r4plus.includes(predicted)) pts = 5
+      else if (r16.includes(predicted)) pts = 3
+      else if (r32.includes(predicted)) pts = 1
     }
     rankDetails[key] = pts
     rankPts += pts

@@ -109,6 +109,30 @@ export default function PredictDetailPage() {
 
   const pts = calcPoints(pred, results)
   const c = pred.current
+  const rankingRows = results ? ([
+    { label: '1位', team: c.rankings.r1, pts: pts.details.r1 },
+    { label: '2位', team: c.rankings.r2, pts: pts.details.r2 },
+    { label: '3位', team: c.rankings.r3, pts: pts.details.r3 },
+    { label: '4位', team: c.rankings.r4, pts: pts.details.r4 },
+  ] as const).map(row => {
+    const team = row.team || '未選択'
+    const stage = results.advancedTeams.r4plusFinished?.includes(team)
+      ? 'ベスト4'
+      : results.advancedTeams.r4plus.includes(team)
+        ? 'ベスト4以上'
+        : results.advancedTeams.r8Finished?.includes(team)
+          ? 'ベスト8'
+          : results.advancedTeams.r8.includes(team)
+            ? 'ベスト8以上'
+            : results.advancedTeams.r16Finished?.includes(team)
+              ? 'ベスト16'
+              : results.advancedTeams.r16.includes(team)
+                ? 'ベスト16以上'
+                : results.advancedTeams.r32.includes(team)
+                  ? 'ベスト32'
+                  : '予選敗退'
+    return { ...row, team, stage }
+  }) : []
 
   return (
     <main>
@@ -161,6 +185,18 @@ export default function PredictDetailPage() {
                   )
                 })}
                 <tr><td colSpan={2} style={{paddingTop:8, borderTop:'1px solid var(--border)'}}>試合合計</td><td style={{paddingTop:8}}>{pts.match}pt</td></tr>
+                <tr>
+                  <td colSpan={3} style={{paddingTop:8, color:'var(--muted)', fontSize:13, lineHeight:1.5}}>
+                    <div>順位予想内訳</div>
+                    {rankingRows.map(row => (
+                      <div key={row.label} style={{display:'grid', gridTemplateColumns:'1fr 1fr auto', gap:8}}>
+                        <span>{row.label} {row.team}</span>
+                        <span style={{textAlign:'center'}}>{row.stage}</span>
+                        <span style={{color:'var(--white)'}}>{row.pts}pt</span>
+                      </div>
+                    ))}
+                  </td>
+                </tr>
                 <tr><td colSpan={2}>順位予想合計</td><td>{pts.ranking}pt</td></tr>
                 <tr><td colSpan={2}>得点王ボーナス</td><td>{pts.scorer}pt</td></tr>
                 <tr className="pt-total">

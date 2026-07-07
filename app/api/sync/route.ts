@@ -30,12 +30,21 @@ export async function GET() {
         r16: sanitizeTeams(fresh.advancedTeams?.r16).length
           ? sanitizeTeams(fresh.advancedTeams?.r16)
           : sanitizeTeams(existing.advancedTeams?.r16),
+        r16Finished: sanitizeTeams(fresh.advancedTeams?.r16Finished).length
+          ? sanitizeTeams(fresh.advancedTeams?.r16Finished)
+          : sanitizeTeams(existing.advancedTeams?.r16Finished),
         r8: sanitizeTeams(fresh.advancedTeams?.r8).length
           ? sanitizeTeams(fresh.advancedTeams?.r8)
           : sanitizeTeams(existing.advancedTeams?.r8),
+        r8Finished: sanitizeTeams(fresh.advancedTeams?.r8Finished).length
+          ? sanitizeTeams(fresh.advancedTeams?.r8Finished)
+          : sanitizeTeams(existing.advancedTeams?.r8Finished),
         r4plus: sanitizeTeams(fresh.advancedTeams?.r4plus).length
           ? sanitizeTeams(fresh.advancedTeams?.r4plus)
           : sanitizeTeams(existing.advancedTeams?.r4plus),
+        r4plusFinished: sanitizeTeams(fresh.advancedTeams?.r4plusFinished).length
+          ? sanitizeTeams(fresh.advancedTeams?.r4plusFinished)
+          : sanitizeTeams(existing.advancedTeams?.r4plusFinished),
       },
       scorer: fresh.scorer || existing.scorer,
       scorers: fresh.scorers || existing.scorers || [],
