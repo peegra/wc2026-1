@@ -174,57 +174,52 @@ async function fetchRankings(
     })
 
     const rankings = await page.evaluate(() => {
-      const results: Record<string, string | undefined> = {
+      const results: Record<'r1' | 'r2' | 'r3' | 'r4', string | undefined> = {
         r1: undefined,
         r2: undefined,
         r3: undefined,
         r4: undefined,
       }
 
-      // 予想結果テーブルを探す
-      const tables = document.querySelectorAll('table')
-      let rankTable = null
+      const parseScore = (scoreText: string) => {
+        const match = scoreText.replace(/\s+/g, ' ').match(/(\d+)\s*[-–]\s*(\d+)/)
+        if (!match) return null
+        return { home: Number(match[1]), away: Number(match[2]) }
+      }
 
-      for (let i = 0; i < tables.length; i++) {
-        const headerText = tables[i].querySelector('thead tr')?.textContent || ''
-        if (headerText.includes('チーム') || headerText.includes('予想')) {
-          rankTable = tables[i]
-          break
+      const rows = document.querySelectorAll('.sc-tableGame tbody tr')
+      rows.forEach((row) => {
+        const cells = row.querySelectorAll('td')
+        if (cells.length < 5) return
+
+        const category = cells[1]?.textContent?.trim() || ''
+        const home = cells[2]?.textContent?.trim() || ''
+        const scoreText = cells[3]?.textContent?.trim() || ''
+        const away = cells[4]?.textContent?.trim() || ''
+        const score = parseScore(scoreText)
+
+        if (!home || !away || !score) return
+
+        if (category === '決勝') {
+          if (score.home > score.away) {
+            results.r1 = home
+            results.r2 = away
+          } else if (score.away > score.home) {
+            results.r1 = away
+            results.r2 = home
+          }
         }
-      }
 
-      if (rankTable) {
-        const rows = rankTable.querySelectorAll('tbody tr')
-        const rankingKeys = ['r1', 'r2', 'r3', 'r4']
-        let rankIndex = 0
-
-        rows.forEach((row) => {
-          if (rankIndex >= 4) return
-
-          const cells = row.querySelectorAll('td')
-          if (cells.length < 2) return
-
-          // テーブル構造に応じてチーム名を抽出
-          let teamName = ''
-
-          if (cells.length >= 2) {
-            // 構造: [順位, チーム名, ...] または [チーム名, ...]
-            const secondCell = cells[1]?.innerText?.trim()
-            const firstCell = cells[0]?.innerText?.trim()
-
-            if (secondCell && isNaN(Number(secondCell))) {
-              teamName = secondCell
-            } else if (firstCell && isNaN(Number(firstCell))) {
-              teamName = firstCell
-            }
+        if (category === '3位決定戦') {
+          if (score.home > score.away) {
+            results.r3 = home
+            results.r4 = away
+          } else if (score.away > score.home) {
+            results.r3 = away
+            results.r4 = home
           }
-
-          if (teamName) {
-            results[rankingKeys[rankIndex]] = teamName
-            rankIndex++
-          }
-        })
-      }
+        }
+      })
 
       return results
     })
@@ -269,24 +264,23 @@ async function fetchAdvancedTeams(sharedBrowser?: any): Promise<ActualResults['a
         const away = cells[4]?.textContent?.trim() || ''
         const teams = [home, away].filter(Boolean)
         const isFinished = /\d+\s*[-–]\s*\d+/.test(score)
+        const isRound32 = category === 'ラウンド32' || category === 'ベスト32'
+        const isRound16 = category === 'ラウンド16' || category === 'ベスト16'
+        const isQuarterFinal = category === '準々決勝' || category === 'ベスト8'
+        const isSemiPlus = category === '準決勝' || category === '3位決定戦' || category === '決勝' || category === 'ベスト4'
 
-        if (category.includes('ラウンド32') || category.includes('ベスト32')) {
+        if (isRound32) {
           teams.forEach((t) => r32.add(t))
         }
-        if (category.includes('ラウンド16') || category.includes('ベスト16')) {
+        if (isRound16) {
           teams.forEach((t) => r16.add(t))
           if (isFinished) teams.forEach((t) => r16Finished.add(t))
         }
-        if (category.includes('準々決勝') || category.includes('ベスト8')) {
+        if (isQuarterFinal) {
           teams.forEach((t) => r8.add(t))
           if (isFinished) teams.forEach((t) => r8Finished.add(t))
         }
-        if (
-          category.includes('準決勝') ||
-          category.includes('3位決定戦') ||
-          category.includes('決勝') ||
-          category.includes('ベスト4')
-        ) {
+        if (isSemiPlus) {
           teams.forEach((t) => r4plus.add(t))
           if (isFinished) teams.forEach((t) => r4plusFinished.add(t))
         }
