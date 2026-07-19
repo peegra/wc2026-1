@@ -272,7 +272,7 @@ export function calcPoints(pred: Prediction, results: ActualResults | null): Poi
     rankPts += pts
   })
 
-  // 得点王は、決勝後の最終更新でのみ「的中」ボーナスを付与する。
+  // 得点王は、決勝後の最終更新でのみ「+10pt」ボーナスを加算する。
   // それまでは得点数分だけポイントを加算する。
   let scorerPts = 0
   if (p.scorer?.name) {
@@ -289,7 +289,7 @@ export function calcPoints(pred: Prediction, results: ActualResults | null): Poi
 
       scorerPts = selected.goals
       if (isScorerFinalized() && isTopScorer) {
-        scorerPts = 10
+        scorerPts += 10
       }
     }
   }

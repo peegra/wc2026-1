@@ -1,5 +1,70 @@
 import { ActualResults, TEAMS } from './data'
 
+const MANUAL_FINAL_RANKINGS: Required<ActualResults['rankings']> = {
+  r1: 'スペイン',
+  r2: 'アルゼンチン',
+  r3: 'イングランド',
+  r4: 'フランス',
+}
+
+const MANUAL_TOP_SCORER = { name: 'キリアン エムバペ', goals: 2 }
+const MANUAL_SCORER_CORRECTIONS: Array<{ name: string; goals: number }> = [
+  { name: 'ラミン ヤマル', goals: 1 },
+]
+
+function normalizeScorerName(value: string): string {
+  return value
+    .normalize('NFKC')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[・･·\s]/g, '')
+    .toLowerCase()
+}
+
+function upsertScorer(
+  scorers: Array<{ name: string; goals: number }>,
+  scorer: { name: string; goals: number },
+): Array<{ name: string; goals: number }> {
+  const key = normalizeScorerName(scorer.name)
+  const idx = scorers.findIndex((s) => normalizeScorerName(s.name) === key)
+  if (idx >= 0) {
+    const existing = scorers[idx]
+    scorers[idx] = { ...existing, goals: Math.max(existing.goals || 0, scorer.goals) }
+    return scorers
+  }
+  scorers.push({ ...scorer })
+  return scorers
+}
+
+function withManualFallback(source: Partial<ActualResults>): Partial<ActualResults> {
+  const rankings = {
+    r1: source.rankings?.r1 || MANUAL_FINAL_RANKINGS.r1,
+    r2: source.rankings?.r2 || MANUAL_FINAL_RANKINGS.r2,
+    r3: source.rankings?.r3 || MANUAL_FINAL_RANKINGS.r3,
+    r4: source.rankings?.r4 || MANUAL_FINAL_RANKINGS.r4,
+  }
+
+  const scorers = [...(source.scorers || [])]
+  MANUAL_SCORER_CORRECTIONS.forEach((manual) => upsertScorer(scorers, manual))
+
+  const hasScorers = scorers.length > 0
+  if (!hasScorers) {
+    upsertScorer(scorers, MANUAL_TOP_SCORER)
+  }
+
+  const scorer = source.scorer?.name
+    ? source.scorer
+    : MANUAL_TOP_SCORER
+
+  return {
+    ...source,
+    rankings,
+    scorers: scorers
+      .sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name, 'ja')),
+    scorer,
+    syncedAt: new Date().toISOString(),
+  }
+}
+
 const isServerlessRuntime = Boolean(
   process.env.VERCEL || process.env.AWS_EXECUTION_ENV || process.env.AWS_LAMBDA_FUNCTION_NAME,
 )
@@ -350,7 +415,24 @@ export async function fetchWCResults(): Promise<Partial<ActualResults>> {
       syncedAt: new Date().toISOString(),
     }
 
-    return result
+    return withManualFallback(result)
+  } catch (err) {
+    console.error('[puppeteer] fetchWCResults error:', err)
+    return withManualFallback({
+      matches: { j1: undefined, j2: undefined, j3: undefined },
+      rankings: { r1: undefined, r2: undefined, r3: undefined, r4: undefined },
+      advancedTeams: {
+        r32: [],
+        r16: [],
+        r16Finished: [],
+        r8: [],
+        r8Finished: [],
+        r4plus: [],
+        r4plusFinished: [],
+      },
+      scorer: undefined,
+      scorers: [],
+    })
   } finally {
     if (browser) await browser.close()
   }
